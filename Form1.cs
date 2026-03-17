@@ -1,7 +1,8 @@
 using System;
-using System.Windows.Forms;
+using System.Collections.Generic;
 using System.IO;
 using System.Media;
+using System.Windows.Forms;
 
 namespace Calculator
 {
@@ -10,11 +11,9 @@ namespace Calculator
         private double _firstNum = 0;
         private string _op = "";
         private bool _newEntry = true;
-        private SoundPlayer _spNumber;
-        private SoundPlayer _spOperator;
-        private SoundPlayer _spEquals;
-        private SoundPlayer _spClear;
-        private SoundPlayer _spBackspace;
+
+        // One player per button
+        private Dictionary<string, SoundPlayer?> _sounds = new();
 
         public Form1()
         {
@@ -22,19 +21,31 @@ namespace Calculator
             LoadSounds();
         }
 
-        // *** ADDED: Load all sound players at startup ***
+        // Maps button labels to friendly filenames
+        private static readonly Dictionary<string, string> _soundFiles = new()
+        {
+            ["0"] = "0", ["1"] = "1", ["2"] = "2", ["3"] = "3", ["4"] = "4",
+            ["5"] = "5", ["6"] = "6", ["7"] = "7", ["8"] = "8", ["9"] = "9",
+            ["."]   = "decimal",
+            ["+/-"] = "sign",
+            ["+"]   = "add",
+            ["−"]   = "subtract",
+            ["×"]   = "multiply",
+            ["÷"]   = "divide",
+            ["%"]   = "percent",
+            ["="]   = "equals",
+            ["C"]   = "clear",
+            ["⌫"]  = "back"
+        };
+
         private void LoadSounds()
         {
             string dir = AppContext.BaseDirectory;
-            _spNumber    = LoadPlayer(Path.Combine(dir, "Sounds/number.wav"));
-            _spOperator  = LoadPlayer(Path.Combine(dir, "Sounds/operator.wav"));
-            _spEquals    = LoadPlayer(Path.Combine(dir, "Sounds/equals.wav"));
-            _spClear     = LoadPlayer(Path.Combine(dir, "Sounds/clear.wav"));
-            _spBackspace = LoadPlayer(Path.Combine(dir, "Sounds/backspace.wav"));
+            foreach (var kvp in _soundFiles)
+                _sounds[kvp.Key] = LoadPlayer(Path.Combine(dir, $"Sounds/{kvp.Value}.wav"));
         }
 
-        // *** ADDED: Returns null if file missing, so buttons still work silently ***
-        private static SoundPlayer LoadPlayer(string path)
+        private static SoundPlayer? LoadPlayer(string path)
         {
             try
             {
@@ -46,14 +57,17 @@ namespace Calculator
             catch { return null; }
         }
 
-        // *** ADDED: Safe play — does nothing if player is null ***
-        private static void Play(SoundPlayer sp) => sp?.Play();
+        private void Play(string key)
+        {
+            if (_sounds.TryGetValue(key, out var sp))
+                sp?.Play();
+        }
 
         // Number & decimal buttons
         private void BtnNum_Click(object sender, EventArgs e)
         {
-            Play(_spNumber); // *** ADDED ***
             var btn = (Button)sender;
+            Play(btn.Text); // plays "0".wav, "1".wav, etc.
             if (txtDisplay.Text == "0" || _newEntry)
             {
                 txtDisplay.Text = btn.Text;
@@ -69,16 +83,17 @@ namespace Calculator
         // Operator buttons
         private void BtnOp_Click(object sender, EventArgs e)
         {
-            Play(_spOperator); // *** ADDED ***
+            var btn = (Button)sender;
+            Play(btn.Text); // plays "+".wav, "−".wav, "×".wav, "÷".wav, "%".wav
             _firstNum = double.Parse(txtDisplay.Text);
-            _op = ((Button)sender).Text;
+            _op = btn.Text;
             _newEntry = true;
         }
 
         // Equals
         private void BtnEquals_Click(object sender, EventArgs e)
         {
-            Play(_spEquals); // *** ADDED ***
+            Play("=");
             if (_op == "") return;
             double second = double.Parse(txtDisplay.Text);
             double result = _op switch
@@ -98,7 +113,7 @@ namespace Calculator
         // Clear
         private void BtnClear_Click(object sender, EventArgs e)
         {
-            Play(_spClear); // *** ADDED ***
+            Play("C");
             txtDisplay.Text = "0";
             _firstNum = 0;
             _op = "";
@@ -108,7 +123,7 @@ namespace Calculator
         // Backspace
         private void BtnBack_Click(object sender, EventArgs e)
         {
-            Play(_spBackspace); // *** ADDED ***
+            Play("⌫");
             if (txtDisplay.Text.Length > 1)
                 txtDisplay.Text = txtDisplay.Text[..^1];
             else
@@ -118,7 +133,7 @@ namespace Calculator
         // +/- toggle
         private void BtnSign_Click(object sender, EventArgs e)
         {
-            Play(_spOperator); // *** ADDED ***
+            Play("+/-");
             if (double.TryParse(txtDisplay.Text, out double v) && v != 0)
                 txtDisplay.Text = (-v).ToString("G10");
         }
